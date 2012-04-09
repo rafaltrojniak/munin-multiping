@@ -1,40 +1,55 @@
 #!/usr/bin/escript
 
+-define(PING_TIMEOUT,9000).
+
 main(["config"])->
 	showConfig();
 main([])->
-	Pids=forkPings(getHosts()),
-	readResults(Pids);
+	Hosts=getHosts(),
+	forkGuards(Hosts),
+	readFromGuards(Hosts);
 main(Unknown)->
 	io:format("Unknown parameters ~p",[Unknown]).
 
-
-
-% Forks ping command for each host
-forkPings([]) ->
+% Forks Guard processes commands for each host
+forkGuards([]) ->
 	[];
-forkPings([Host|HTail]) ->
-	Command=lists:concat(["ping -nq ", getPingArgs(), " ", Host]),
-	Pid=open_port({spawn,Command},[]),
-	[{Host,Pid}|forkPings(HTail)].
+forkGuards([Host|HTail]) ->
+	Master=self(),
+	spawn(fun()->pingGuard(Host,Master) end),
+	forkGuards(HTail).
 
-% Parses an reads results
-readResults([])->
+% Reads messages from guards
+readFromGuards([])->
 	ok;
-readResults(PidList) ->
+readFromGuards(HostList) ->
 	receive
-		{Pid,{data,Data}} ->
-			case lists:keyfind(Pid,2,PidList) of
-				false -> readResults(PidList);
-				{Host,Pid} ->
-					RTT=getRTTFromResponse(Data),
-					Lost=getLostFromResponse(Data),
-					printSingleVal(Host,RTT,Lost),
-					NewPidList=lists:keydelete(Pid,2,PidList),
-					readResults(NewPidList)
-			end
+		{Host, result, RTT, Lost} ->
+				printSingleVal(Host,RTT,Lost),
+				NewHostList=lists:delete(Host,HostList),
+				readFromGuards(NewHostList);
+		{Host, timeout} ->
+				printSingleVal(Host,timeout,timeout),
+				NewHostList=lists:delete(Host,HostList),
+				readFromGuards(NewHostList);
+		Other ->
+			io:format("#Got weird message : ~p\n",[Other]),
+			readFromGuards(HostList)
 	end.
 
+% Process that runs single ping and guards time of the processing of it
+pingGuard(Host,Master)->
+	Command=lists:concat(["ping -nq ", getPingArgs(), " ", Host]),
+	Port=open_port({spawn,Command},[]),
+	receive
+		{Port,{data,Data}} ->
+				RTT=getRTTFromResponse(Data),
+				Lost=getLostFromResponse(Data),
+				Master ! {Host, result, RTT, Lost}
+		after ?PING_TIMEOUT->
+				port_close(Port),
+				Master ! {Host, timeout}
+	end.
 
 %% Munin protocol helpers
 
