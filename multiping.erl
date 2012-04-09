@@ -4,7 +4,7 @@ main(["config"])->
 	showConfig();
 main([])->
 	Pids=forkPings(getHosts()),
-	readResults(Pids).
+	readResults(Pids);
 main(Unknown)->
 	io:format("Unknown parameters ~p",[Unknown]).
 
@@ -73,17 +73,6 @@ getRTTFromResponse(Data)->
 	end.
 
 % Fetches count of lost packets
-getLostFromResponse(Data)->
-	case re:run(Data,"received, (\\d+)% packet loss, time",[{capture,all_but_first,list}]) of
-		{match,[Val]} -> Val;
-		_ -> nomatch
-	end.
-getRTTFromResponse(Data)->
-	case re:run(Data,"min/avg/max.*\\s\\d+(?:\\.\\d+)?/(\\d+(?:\\.\\d+)?)/\\d+(?:\\.\\d+)?",[{capture,all_but_first,list}]) of
-		{match,[Val]} -> Val;
-		_ -> nomatch
-	end.
-
 getLostFromResponse(Data)->
 	case re:run(Data,"received, (\\d+)% packet loss, time",[{capture,all_but_first,list}]) of
 		{match,[Val]} -> Val;
