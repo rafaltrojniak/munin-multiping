@@ -5,18 +5,16 @@ To use it :
 * 	copy to your server
 *		make symbolic link to it in /etc/munin/plugins directory :
 
-<code>
-cd /etc/munin/plugins
+<pre><code> cd /etc/munin/plugins
 sudo ln /home/pluginDir/multiping -s multiping
-</code>
+</code></pre>
 
 *		configure it in /etc/munin/plugin-conf.d/munin-node, by adding for example:
 
-<code>
-[multiping]
+<pre><code> [multiping]
 env.hosts localhost otherHost
 env.ping\_args -A -c 9
-</code>
+</code></pre>
 
 ## Configuration
 
